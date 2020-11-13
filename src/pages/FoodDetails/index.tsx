@@ -30,6 +30,7 @@ import {
   TotalContainer,
   AdittionalItem,
   AdittionalItemText,
+  AdittionalItemPrice,
   AdittionalQuantity,
   PriceButtonContainer,
   TotalPrice,
@@ -73,26 +74,60 @@ const FoodDetails: React.FC = () => {
 
   useEffect(() => {
     async function loadFood(): Promise<void> {
-      // Load a specific food with extras based on routeParams id
+      api.get<Food>(`/foods/${routeParams.id}`).then(res => {
+        const foodFormatted = res.data;
+        foodFormatted.formattedPrice = formatValue(foodFormatted.price);
+        setFood(foodFormatted);
+
+        const extra: Extra[] = res.data.extras;
+        extra.forEach(item => (item.quantity = 0));
+        setExtras(extra);
+      });
     }
 
     loadFood();
   }, [routeParams]);
 
   function handleIncrementExtra(id: number): void {
-    // Increment extra quantity
+    const extra = extras.find(item => item.id === id);
+
+    if (extra) {
+      extra.quantity += 1;
+      setExtras(
+        extras.map(item => {
+          if (item.id === id) {
+            return extra;
+          }
+          return item;
+        }),
+      );
+    }
   }
 
   function handleDecrementExtra(id: number): void {
-    // Decrement extra quantity
+    const extra = extras.find(item => item.id === id);
+
+    if (extra) {
+      if (extra.quantity > 0) {
+        extra.quantity -= 1;
+        setExtras(
+          extras.map(item => {
+            if (item.id === id) {
+              return extra;
+            }
+            return item;
+          }),
+        );
+      }
+    }
   }
 
   function handleIncrementFood(): void {
-    // Increment food quantity
+    setFoodQuantity(state => (state += 1));
   }
 
   function handleDecrementFood(): void {
-    // Decrement food quantity
+    setFoodQuantity(state => (state > 1 ? (state -= 1) : 1));
   }
 
   const toggleFavorite = useCallback(() => {
@@ -100,7 +135,11 @@ const FoodDetails: React.FC = () => {
   }, [isFavorite, food]);
 
   const cartTotal = useMemo(() => {
-    // Calculate cartTotal
+    const sumValues: number[] = [food.price];
+    extras.forEach(item => sumValues.push(item.value * item.quantity));
+    const totalValue = sumValues.reduce((accum, curr) => accum + curr, 0);
+
+    return formatValue(totalValue * foodQuantity);
   }, [extras, food, foodQuantity]);
 
   async function handleFinishOrder(): Promise<void> {
@@ -154,6 +193,9 @@ const FoodDetails: React.FC = () => {
           {extras.map(extra => (
             <AdittionalItem key={extra.id}>
               <AdittionalItemText>{extra.name}</AdittionalItemText>
+              <AdittionalItemPrice>
+                {formatValue(extra.value)}
+              </AdittionalItemPrice>
               <AdittionalQuantity>
                 <Icon
                   size={15}
